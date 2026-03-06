@@ -3,7 +3,6 @@ import requests
 import pydeck as pdk
 import pandas as pd
 from datetime import datetime
-from geopy.geocoders import Nominatim
 
 st.set_page_config(page_title="NYC TAXI FARE", page_icon="🏎️", layout="wide")
 
@@ -389,10 +388,22 @@ if st.session_state.show_fare and st.session_state.fare_data:
 # ── MAIN UI ───────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
 def geocode(address):
-    geolocator = Nominatim(user_agent="nyc_taxi_fare_v2")
-    loc = geolocator.geocode(f"{address}, New York City, NY", timeout=10)
-    if loc:
-        return loc.latitude, loc.longitude
+    """Geocode using OpenStreetMap Nominatim API directly via requests — no extra package needed."""
+    try:
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            "q": f"{address}, New York City, NY, USA",
+            "format": "json",
+            "limit": 1,
+            "addressdetails": 0,
+        }
+        headers = {"User-Agent": "nyc-taxi-fare-app/1.0"}
+        r = requests.get(url, params=params, headers=headers, timeout=10)
+        results = r.json()
+        if results:
+            return float(results[0]["lat"]), float(results[0]["lon"])
+    except Exception:
+        pass
     return None, None
 
 left, right = st.columns([1, 1.6], gap="large")
@@ -458,7 +469,18 @@ with left:
                     r = requests.get("https://taxifare.lewagon.ai/predict", params=params, timeout=10)
                     r.raise_for_status()
                     data = r.json()
-                    pred = data.get("fare", data.get("fare_amount"))
+                    # Handle all possible API response keys
+                    pred = (
+                        data.get("fare") or
+                        data.get("fare_amount") or
+                        data.get("prediction") or
+                        data.get("predicted_fare") or
+                        (list(data.values())[0] if len(data) == 1 else None)
+                    )
+                    try:
+                        pred = float(pred) if pred is not None else None
+                    except (ValueError, TypeError):
+                        pred = None
                     if pred is not None:
                         st.session_state.fare_data = {
                             "pred": pred,
@@ -471,7 +493,7 @@ with left:
                         st.session_state.show_fare = False
                         st.rerun()
                     else:
-                        st.error("Unexpected API response.")
+                        st.error(f"Unexpected API response: {data}")
                 except Exception as e:
                     st.error(f"Error: {e}")
 
@@ -535,4 +557,4 @@ with right:
         ),
         map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
         tooltip={"text": "{label}"},
-    ), use_container_width=True, height=600)
+    ), width='stretch', height=600)
