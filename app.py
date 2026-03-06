@@ -99,31 +99,19 @@ div[data-testid="stButton"]>button{
     padding:0.9rem 2rem !important;width:100% !important;}
 div[data-testid="stButton"]>button:hover{opacity:0.88 !important;}
 
-/* TRAIN OVERLAY */
-#train-overlay{position:fixed;inset:0;background:#08080a;z-index:99999;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;}
-#train-overlay::before{content:'';position:absolute;inset:0;
-    background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);
-    pointer-events:none;}
-.train-title{font-family:'Bebas Neue',sans-serif;font-size:5rem;color:#e8b84b;
-    letter-spacing:0.12em;text-shadow:0 0 40px rgba(232,184,75,0.6);animation:flicker 0.2s infinite alternate;}
-@keyframes flicker{0%{opacity:1;}100%{opacity:0.9;}}
-.train-sub{font-size:0.72rem;letter-spacing:0.4em;text-transform:uppercase;color:#444;margin:0.3rem 0 2.5rem 0;}
-.rail-wrap{position:relative;width:600px;height:120px;}
-.rail{position:absolute;bottom:20px;left:0;right:0;height:4px;background:linear-gradient(to right,#1a1a28,#2a2a3a,#1a1a28);border-radius:2px;}
-.rail::before,.rail::after{content:'';position:absolute;top:-8px;left:0;right:0;height:2px;background:repeating-linear-gradient(90deg,#1e1e2e 0px,#1e1e2e 18px,transparent 18px,transparent 30px);}
-.rail::after{top:12px;}
-/* Sleepers */
-.sleeper{position:absolute;bottom:14px;width:6px;height:18px;background:#1e1e2e;border-radius:1px;}
-.train-car{position:absolute;bottom:24px;font-size:2.8rem;animation:trainMove 3s linear infinite;filter:drop-shadow(0 0 8px rgba(232,184,75,0.6));}
-@keyframes trainMove{0%{left:-80px;}100%{left:640px;}}
-/* Smoke particles */
-.smoke{position:absolute;border-radius:50%;background:rgba(180,180,200,0.15);
-    animation:smokeRise var(--dur) ease-out infinite;
-    animation-delay:var(--delay);}
-@keyframes smokeRise{
-    0%{transform:translate(var(--sx),var(--sy)) scale(0.3);opacity:0.7;}
-    100%{transform:translate(calc(var(--sx) - 40px),calc(var(--sy) - 80px)) scale(2.5);opacity:0;}}
+/* TRAIN OVERLAY — full canvas 3D scene */
+#train-overlay{position:fixed;inset:0;background:#08080a;z-index:99999;overflow:hidden;}
+#train-canvas{position:absolute;inset:0;width:100%;height:100%;}
+#train-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:10vh;pointer-events:none;}
+.train-title{font-family:'Bebas Neue',sans-serif;font-size:5.5rem;color:#e8b84b;letter-spacing:0.14em;
+    text-shadow:0 0 60px rgba(232,184,75,0.7),0 0 120px rgba(232,184,75,0.3);
+    animation:titlePulse 2s ease-in-out infinite alternate;}
+@keyframes titlePulse{0%{text-shadow:0 0 40px rgba(232,184,75,0.5);}100%{text-shadow:0 0 80px rgba(232,184,75,0.9),0 0 140px rgba(232,184,75,0.4);}}
+.train-sub{font-size:0.75rem;letter-spacing:0.5em;text-transform:uppercase;color:#555;margin:0.6rem 0 0 0;}
+#fare-loading{position:absolute;bottom:12vh;left:50%;transform:translateX(-50%);
+    font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#333;letter-spacing:0.25em;
+    animation:blink 1s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -135,31 +123,407 @@ st.markdown("""
 
 # ══════════ STAGE: TRAIN ANIMATION ══════════
 if st.session_state.stage == "f1":
-    st.markdown("""
-    <div id="train-overlay">
-        <div class="train-title">NYC EXPRESS</div>
-        <div class="train-sub">Computing optimal fare trajectory</div>
-        <div class="rail-wrap">
-            <div class="rail"></div>
-            <!-- sleepers -->
-            <div class="sleeper" style="left:40px"></div><div class="sleeper" style="left:80px"></div>
-            <div class="sleeper" style="left:120px"></div><div class="sleeper" style="left:160px"></div>
-            <div class="sleeper" style="left:200px"></div><div class="sleeper" style="left:240px"></div>
-            <div class="sleeper" style="left:280px"></div><div class="sleeper" style="left:320px"></div>
-            <div class="sleeper" style="left:360px"></div><div class="sleeper" style="left:400px"></div>
-            <div class="sleeper" style="left:440px"></div><div class="sleeper" style="left:480px"></div>
-            <div class="sleeper" style="left:520px"></div><div class="sleeper" style="left:560px"></div>
-            <!-- train -->
-            <div class="train-car">🚂💨</div>
-            <!-- smoke particles -->
-            <div class="smoke" style="width:20px;height:20px;--sx:20px;--sy:-20px;--dur:1.2s;--delay:0s;left:30%;top:10px;"></div>
-            <div class="smoke" style="width:14px;height:14px;--sx:10px;--sy:-15px;--dur:1.5s;--delay:0.3s;left:32%;top:15px;"></div>
-            <div class="smoke" style="width:24px;height:24px;--sx:25px;--sy:-25px;--dur:1.0s;--delay:0.6s;left:28%;top:5px;"></div>
-            <div class="smoke" style="width:18px;height:18px;--sx:15px;--sy:-20px;--dur:1.8s;--delay:0.1s;left:34%;top:12px;"></div>
-            <div class="smoke" style="width:30px;height:30px;--sx:30px;--sy:-30px;--dur:2.0s;--delay:0.9s;left:26%;top:0px;"></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.components.v1.html("""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#08080a; overflow:hidden; }
+#c { display:block; width:100vw; height:100vh; }
+#ui {
+  position:fixed; top:0; left:0; right:0;
+  display:flex; flex-direction:column; align-items:center; padding-top:8vh;
+  pointer-events:none;
+}
+.title {
+  font-family:'Bebas Neue',cursive; font-size:5rem; color:#e8b84b;
+  letter-spacing:0.14em;
+  text-shadow:0 0 60px rgba(232,184,75,0.8), 0 0 120px rgba(232,184,75,0.3);
+  animation:glow 2s ease-in-out infinite alternate;
+}
+@keyframes glow {
+  from { text-shadow:0 0 40px rgba(232,184,75,0.5); }
+  to   { text-shadow:0 0 100px rgba(232,184,75,1), 0 0 200px rgba(232,184,75,0.4); }
+}
+.sub { font-size:0.7rem; letter-spacing:0.5em; text-transform:uppercase; color:#444; margin-top:0.5rem; }
+#dot { position:fixed; bottom:12vh; left:50%; transform:translateX(-50%);
+  font-family:'Bebas Neue',cursive; font-size:1rem; color:#2a2a2a; letter-spacing:0.3em;
+  animation:blink 1.2s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div class="title">NYC EXPRESS</div>
+  <div class="sub">Computing optimal fare trajectory</div>
+</div>
+<div id="dot">LOADING FARE ···</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ── TRAIN HORN (Web Audio API) ─────────────────────────────────────────────
+function playHorn() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    function tone(freq, start, dur, vol) {
+      const osc  = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, ac.currentTime + start);
+      gain.gain.setValueAtTime(0, ac.currentTime + start);
+      gain.gain.linearRampToValueAtTime(vol, ac.currentTime + start + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + start + dur);
+      osc.start(ac.currentTime + start);
+      osc.stop(ac.currentTime + start + dur + 0.1);
+    }
+    // Classic train horn chord: F, Ab, C, Eb (minor 7th)
+    tone(174, 0.0, 0.8, 0.25);
+    tone(207, 0.0, 0.8, 0.20);
+    tone(261, 0.0, 0.8, 0.18);
+    tone(311, 0.0, 0.8, 0.15);
+    tone(174, 1.1, 1.4, 0.30);
+    tone(207, 1.1, 1.4, 0.22);
+    tone(261, 1.1, 1.4, 0.20);
+    tone(311, 1.1, 1.4, 0.18);
+  } catch(e) {}
+}
+
+// ── SCENE SETUP ────────────────────────────────────────────────────────────
+// 3D perspective
+const VP = { x: 0.5, y: 0.55 }; // vanishing point (relative)
+const RAIL_SPREAD = 0.18;        // half-width at bottom (relative)
+const HORIZON_Y   = 0.40;        // horizon at 40% height
+
+// Smoke particles
+let smokes = [];
+function spawnSmoke(x, y, big) {
+  for (let i = 0; i < (big ? 6 : 2); i++) {
+    smokes.push({
+      x: x + (Math.random()-0.5)*30,
+      y: y + (Math.random()-0.5)*10,
+      vx: (Math.random()-0.5)*0.6 - 0.2,
+      vy: -(Math.random()*1.5 + 0.5),
+      r:  Math.random()*18 + 12,
+      alpha: Math.random()*0.5 + 0.3,
+      life: 1.0,
+      decay: Math.random()*0.008 + 0.004,
+      gray: Math.floor(Math.random()*40 + 160),
+    });
+  }
+}
+
+// Speed lines (background atmosphere)
+let speedLines = [];
+for (let i = 0; i < 30; i++) {
+  speedLines.push({
+    x: Math.random(), y: Math.random(),
+    len: Math.random()*0.12 + 0.04,
+    speed: Math.random()*0.003 + 0.001,
+    alpha: Math.random()*0.15 + 0.03,
+  });
+}
+
+// Stars
+let stars = [];
+for (let i = 0; i < 120; i++) {
+  stars.push({
+    x: Math.random(), y: Math.random() * HORIZON_Y,
+    r: Math.random()*1.2 + 0.3,
+    twinkle: Math.random()*Math.PI*2,
+    speed: Math.random()*0.03 + 0.01,
+  });
+}
+
+// Ground tiles (perspective grid)
+function drawGround() {
+  const W = canvas.width, H = canvas.height;
+  const vx = VP.x * W, vy = HORIZON_Y * H;
+  const spread = RAIL_SPREAD * W;
+
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0,0,0,vy);
+  sky.addColorStop(0,  '#010108');
+  sky.addColorStop(1,  '#0c0c18');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,W,vy);
+
+  // Ground
+  const gnd = ctx.createLinearGradient(0,vy,0,H);
+  gnd.addColorStop(0,  '#0d0d12');
+  gnd.addColorStop(1,  '#080810');
+  ctx.fillStyle = gnd; ctx.fillRect(0,vy,W,H-vy);
+
+  // Perspective rail ties
+  const tieCount = 22;
+  for (let i = 0; i < tieCount; i++) {
+    const t = i / tieCount;
+    const tEased = Math.pow(t, 1.8); // perspective squish
+    const yy = vy + tEased * (H - vy);
+    const halfW = spread * tEased + 4;
+    ctx.fillStyle = `rgba(25,25,40,${0.4 + t*0.5})`;
+    ctx.fillRect(vx - halfW - 4, yy - 3, (halfW+4)*2, 6);
+
+    // Tie highlight
+    ctx.fillStyle = `rgba(40,40,60,${0.3 + t*0.4})`;
+    ctx.fillRect(vx - halfW - 4, yy - 1.5, (halfW+4)*2, 2);
+  }
+
+  // Rails
+  function rail(side) {
+    ctx.beginPath();
+    ctx.moveTo(vx, vy);
+    ctx.lineTo(vx + side * (spread + 4), H);
+    const rg = ctx.createLinearGradient(0, vy, 0, H);
+    rg.addColorStop(0, 'rgba(232,184,75,0.1)');
+    rg.addColorStop(0.5, 'rgba(180,150,60,0.6)');
+    rg.addColorStop(1, 'rgba(232,184,75,0.9)');
+    ctx.strokeStyle = rg;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+  rail(-1); rail(1);
+}
+
+// 3D train drawing
+let trainX = -0.3; // -0.3 = far left (off screen), 1.3 = far right
+const TRAIN_SPEED = 0.018; // slower
+let hornFired = false;
+let hornFired2 = false;
+
+function drawTrain(tx) {
+  const W = canvas.width, H = canvas.height;
+  const vx = VP.x * W, vy = HORIZON_Y * H;
+  const spread = RAIL_SPREAD * W;
+
+  // tx in [0,1] → horizontal position from left to right
+  // Compute perspective: train moves from horizon toward bottom-left or bottom-right
+  // We simulate train coming from distant left and passing across
+  const perspT = Math.max(0, Math.min(tx, 1));
+
+  // As train moves right (0→1), it gets bigger and lower
+  const scale  = 0.18 + perspT * 0.55; // size multiplier
+  const trainY = vy + perspT * (H - vy) * 0.7;
+  const xPos   = vx - spread*0.6 + tx * (W * 0.9);
+
+  // Train body dimensions
+  const bodyW  = (260 + perspT * 180) * scale;
+  const bodyH  = (55 + perspT * 35) * scale;
+
+  const bx = xPos - bodyW * 0.3; // offset so front leads
+  const by = trainY - bodyH;
+
+  // Shadow
+  ctx.save();
+  ctx.globalAlpha = 0.3 * perspT;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(bx + bodyW*0.5, trainY + 6*scale, bodyW*0.5, 10*scale, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Wheels (4 pairs)
+  const wheelR = 11 * scale;
+  const wheelY = trainY + 2*scale;
+  const wheelPositions = [0.08, 0.25, 0.60, 0.80];
+  wheelPositions.forEach(wp => {
+    const wx = bx + bodyW * wp;
+    // Wheel
+    ctx.beginPath(); ctx.arc(wx, wheelY, wheelR, 0, Math.PI*2);
+    ctx.fillStyle = '#1a1a28'; ctx.fill();
+    ctx.strokeStyle = '#e8b84b'; ctx.lineWidth = 2*scale; ctx.stroke();
+    // Spoke
+    const spAngle = (Date.now()/200) * (0.5 + perspT);
+    for (let s=0; s<4; s++) {
+      const a = spAngle + s * Math.PI/2;
+      ctx.beginPath();
+      ctx.moveTo(wx + Math.cos(a)*wheelR*0.3, wheelY + Math.sin(a)*wheelR*0.3);
+      ctx.lineTo(wx + Math.cos(a)*wheelR*0.85, wheelY + Math.sin(a)*wheelR*0.85);
+      ctx.strokeStyle = 'rgba(232,184,75,0.7)'; ctx.lineWidth = 1.5*scale; ctx.stroke();
+    }
+  });
+
+  // Main body
+  const bodyGrad = ctx.createLinearGradient(bx, by, bx, by + bodyH);
+  bodyGrad.addColorStop(0,   '#2a2a3a');
+  bodyGrad.addColorStop(0.3, '#1e1e2c');
+  bodyGrad.addColorStop(1,   '#111118');
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bodyW, bodyH, 8*scale);
+  ctx.fill();
+
+  // Body border
+  ctx.strokeStyle = 'rgba(232,184,75,0.25)'; ctx.lineWidth = 1.5*scale; ctx.stroke();
+
+  // Gold stripe
+  const stripeY = by + bodyH*0.55;
+  const stripeGrad = ctx.createLinearGradient(bx,0,bx+bodyW,0);
+  stripeGrad.addColorStop(0,   'rgba(232,184,75,0)');
+  stripeGrad.addColorStop(0.1, 'rgba(232,184,75,0.8)');
+  stripeGrad.addColorStop(0.9, 'rgba(232,184,75,0.8)');
+  stripeGrad.addColorStop(1,   'rgba(232,184,75,0)');
+  ctx.fillStyle = stripeGrad;
+  ctx.fillRect(bx, stripeY, bodyW, 3*scale);
+
+  // Windows (6)
+  const winW = 20*scale, winH = 14*scale;
+  const winY = by + bodyH*0.18;
+  for (let w=0; w<6; w++) {
+    const winX = bx + bodyW*0.08 + w * (bodyW*0.14);
+    const wGrad = ctx.createLinearGradient(winX, winY, winX, winY+winH);
+    const lit = Math.random() > 0.4;
+    wGrad.addColorStop(0, lit ? 'rgba(255,240,180,0.9)' : 'rgba(30,30,50,0.9)');
+    wGrad.addColorStop(1, lit ? 'rgba(200,160,80,0.7)'  : 'rgba(15,15,30,0.8)');
+    ctx.fillStyle = wGrad;
+    ctx.beginPath(); ctx.roundRect(winX, winY, winW, winH, 3*scale); ctx.fill();
+    ctx.strokeStyle = 'rgba(232,184,75,0.3)'; ctx.lineWidth = scale; ctx.stroke();
+  }
+
+  // Cabin / locomotive front
+  const cabW = 42*scale, cabH = bodyH * 1.15;
+  const cabX = bx + bodyW - cabW;
+  const cabY = by - cabH * 0.15;
+  const cabGrad = ctx.createLinearGradient(cabX, cabY, cabX+cabW, cabY);
+  cabGrad.addColorStop(0, '#1e1e2c');
+  cabGrad.addColorStop(1, '#2d2d40');
+  ctx.fillStyle = cabGrad;
+  ctx.beginPath(); ctx.roundRect(cabX, cabY, cabW, cabH, 6*scale); ctx.fill();
+  ctx.strokeStyle = 'rgba(232,184,75,0.4)'; ctx.lineWidth = 1.5*scale; ctx.stroke();
+
+  // Headlight beam
+  const hlX = cabX + cabW - 2*scale;
+  const hlY = cabY + cabH * 0.3;
+  const beam = ctx.createRadialGradient(hlX, hlY, 0, hlX, hlY, 80*scale);
+  beam.addColorStop(0, 'rgba(255,250,210,0.9)');
+  beam.addColorStop(0.1,'rgba(232,184,75,0.4)');
+  beam.addColorStop(1,  'rgba(232,184,75,0)');
+  ctx.fillStyle = beam;
+  ctx.beginPath(); ctx.arc(hlX, hlY, 80*scale, 0, Math.PI*2); ctx.fill();
+  // Headlight dot
+  ctx.beginPath(); ctx.arc(hlX, hlY, 5*scale, 0, Math.PI*2);
+  ctx.fillStyle = '#fff8e0'; ctx.fill();
+
+  // Chimney + smoke spawn point
+  const chimneyX = cabX + cabW*0.3;
+  const chimneyY = cabY - 14*scale;
+  ctx.fillStyle = '#1a1a28';
+  ctx.fillRect(chimneyX - 5*scale, chimneyY, 10*scale, 14*scale);
+  ctx.strokeStyle = 'rgba(232,184,75,0.3)'; ctx.lineWidth = scale; ctx.stroke();
+
+  // Connecting rods animation
+  const rodPhase = Date.now()/180;
+  ctx.beginPath();
+  ctx.moveTo(bx + bodyW*0.08 + Math.cos(rodPhase)*8*scale, wheelY - wheelR*0.5);
+  ctx.lineTo(bx + bodyW*0.25 + Math.cos(rodPhase+1.2)*8*scale, wheelY - wheelR*0.5);
+  ctx.lineTo(bx + bodyW*0.60 + Math.cos(rodPhase+2.4)*8*scale, wheelY - wheelR*0.5);
+  ctx.strokeStyle = 'rgba(232,184,75,0.5)'; ctx.lineWidth = 3*scale; ctx.stroke();
+
+  return { smokeX: chimneyX, smokeY: chimneyY };
+}
+
+// Stars
+function drawStars(dt) {
+  stars.forEach(s => {
+    s.twinkle += s.speed;
+    const a = 0.4 + Math.sin(s.twinkle)*0.3;
+    ctx.beginPath(); ctx.arc(s.x*canvas.width, s.y*canvas.height, s.r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fill();
+  });
+}
+
+// City skyline
+function drawSkyline() {
+  const W = canvas.width, H = canvas.height;
+  const vy = HORIZON_Y * H;
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  const buildings = [
+    {x:0.02,w:0.04,h:0.20},{x:0.07,w:0.03,h:0.28},{x:0.11,w:0.05,h:0.15},
+    {x:0.17,w:0.04,h:0.32},{x:0.22,w:0.06,h:0.22},{x:0.29,w:0.03,h:0.38},
+    {x:0.34,w:0.05,h:0.25},{x:0.40,w:0.04,h:0.18},{x:0.45,w:0.07,h:0.30},
+    {x:0.54,w:0.04,h:0.42},{x:0.59,w:0.05,h:0.20},{x:0.65,w:0.06,h:0.28},
+    {x:0.72,w:0.04,h:0.35},{x:0.77,w:0.05,h:0.18},{x:0.83,w:0.04,h:0.24},
+    {x:0.88,w:0.06,h:0.30},{x:0.95,w:0.04,h:0.16},
+  ];
+  buildings.forEach(b => {
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(b.x*W, vy - b.h*vy, b.w*W, b.h*vy);
+    // windows
+    ctx.fillStyle = 'rgba(232,184,75,0.6)';
+    for (let wy=0; wy<b.h*vy-8; wy+=10) {
+      for (let wx=3; wx<b.w*W-3; wx+=8) {
+        if (Math.random()>0.5) ctx.fillRect(b.x*W+wx, vy-b.h*vy+wy+4, 4, 5);
+      }
+    }
+  });
+  ctx.restore();
+}
+
+// Main loop
+let last = 0;
+function loop(ts) {
+  const dt = (ts - last) / 1000; last = ts;
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  drawGround();
+  drawStars(dt);
+  drawSkyline();
+
+  // Speed lines
+  speedLines.forEach(sl => {
+    sl.x -= sl.speed;
+    if (sl.x < -sl.len) sl.x = 1 + sl.len;
+    ctx.beginPath();
+    ctx.moveTo(sl.x*W, sl.y*H);
+    ctx.lineTo((sl.x+sl.len)*W, sl.y*H);
+    ctx.strokeStyle = `rgba(232,184,75,${sl.alpha})`;
+    ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  trainX += TRAIN_SPEED * (60*dt);
+  if (trainX > 1.3) trainX = -0.3;
+
+  // Horn at t=0.1 and t=0.6
+  const normT = (trainX + 0.3) / 1.6;
+  if (!hornFired  && normT > 0.1) { hornFired  = true; playHorn(); }
+  if (!hornFired2 && normT > 0.65){ hornFired2 = true; playHorn(); }
+  if (normT < 0.05) { hornFired = false; hornFired2 = false; }
+
+  const { smokeX, smokeY } = drawTrain(trainX);
+
+  // Spawn smoke
+  if (Math.random() < 0.4) spawnSmoke(smokeX, smokeY, false);
+
+  // Update + draw smoke
+  smokes = smokes.filter(s => s.life > 0);
+  smokes.forEach(s => {
+    s.x += s.vx; s.y += s.vy; s.r += 0.4;
+    s.life -= s.decay;
+    s.alpha = s.life * 0.5;
+    const sg = ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r);
+    sg.addColorStop(0, `rgba(${s.gray},${s.gray},${s.gray+10},${s.alpha})`);
+    sg.addColorStop(1, `rgba(${s.gray},${s.gray},${s.gray+10},0)`);
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fillStyle = sg; ctx.fill();
+  });
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body></html>
+    """, height=700, scrolling=False)
     time.sleep(5)
     st.session_state.stage = "result"
     st.rerun()
