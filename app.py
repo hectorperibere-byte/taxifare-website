@@ -157,7 +157,7 @@ passenger_count = st.slider("👥 Passengers", min_value=1, max_value=8, value=1
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ── Predict ───────────────────────────────────────────────────────────────────
-url = 'https://taxifare-294990428867.europe-west9.run.app'
+url = 'https://taxifare.lewagon.ai/predict'
 
 if st.button("Get Fare Estimate →"):
     params = {
