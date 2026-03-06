@@ -20,9 +20,8 @@ html, body, [class*="css"] {
 
 .block-container {
     padding: 2.5rem 3rem 3rem 3rem !important;
-    max-width: 1200px !important;
+    max-width: 1300px !important;
 }
-
 .hero-title {
     font-family: 'DM Serif Display', serif;
     font-size: 3rem;
@@ -30,11 +29,7 @@ html, body, [class*="css"] {
     line-height: 1.1;
     margin-bottom: 0.4rem;
 }
-.hero-sub {
-    font-size: 1rem;
-    color: #555;
-    font-weight: 300;
-}
+.hero-sub { font-size: 1rem; color: #555; font-weight: 300; }
 .section-label {
     font-size: 0.68rem;
     font-weight: 600;
@@ -44,11 +39,7 @@ html, body, [class*="css"] {
     margin-bottom: 0.6rem;
     margin-top: 1.4rem;
 }
-.divider {
-    border: none;
-    border-top: 1px solid #1e1e28;
-    margin: 1.2rem 0;
-}
+.divider { border: none; border-top: 1px solid #1e1e28; margin: 1.2rem 0; }
 
 div[data-testid="stTextInput"] input,
 div[data-testid="stNumberInput"] input {
@@ -63,7 +54,6 @@ div[data-testid="stNumberInput"] input:focus {
     border-color: #e8b84b !important;
     box-shadow: 0 0 0 3px rgba(232,184,75,0.12) !important;
 }
-
 label[data-testid="stWidgetLabel"] p {
     font-size: 0.75rem !important;
     font-weight: 500 !important;
@@ -71,18 +61,15 @@ label[data-testid="stWidgetLabel"] p {
     text-transform: uppercase;
     letter-spacing: 0.07em;
 }
-
 div[data-testid="stButton"] > button {
     background: #e8b84b !important;
     color: #0c0c0e !important;
-    font-family: 'DM Sans', sans-serif !important;
     font-weight: 600 !important;
     font-size: 0.95rem !important;
     border: none !important;
     border-radius: 12px !important;
     padding: 0.8rem 2rem !important;
     width: 100% !important;
-    transition: opacity 0.2s !important;
 }
 div[data-testid="stButton"] > button:hover { opacity: 0.85 !important; }
 
@@ -100,16 +87,11 @@ div[data-testid="stButton"] > button:hover { opacity: 0.85 !important; }
     color: #e8b84b;
     line-height: 1;
 }
-.result-meta {
-    font-size: 0.82rem;
-    color: #444;
-    margin-top: 0.6rem;
-}
+.result-meta { font-size: 0.82rem; color: #444; margin-top: 0.6rem; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Layout ────────────────────────────────────────────────────────────────────
-left, right = st.columns([1, 1.5], gap="large")
+left, right = st.columns([1, 1.6], gap="large")
 
 with left:
     st.markdown("""
@@ -194,58 +176,59 @@ with right:
     mid_lat = (pickup_lat + dropoff_lat) / 2
     mid_lon = (pickup_lon + dropoff_lon) / 2
 
-    # Arc layer for animated route
-    arc_layer = pdk.Layer(
-        "ArcLayer",
+    # Route line — flat 2D
+    line_layer = pdk.Layer(
+        "PathLayer",
         data=pd.DataFrame([{
-            "sx": pickup_lon, "sy": pickup_lat,
-            "ex": dropoff_lon, "ey": dropoff_lat,
+            "path": [
+                [pickup_lon, pickup_lat],
+                [dropoff_lon, dropoff_lat],
+            ]
         }]),
-        get_source_position=["sx", "sy"],
-        get_target_position=["ex", "ey"],
-        get_source_color=[232, 184, 75, 200],
-        get_target_color=[232, 184, 75, 200],
-        get_width=4,
-        auto_highlight=True,
+        get_path="path",
+        get_color=[232, 184, 75, 255],
+        get_width=6,
+        width_min_pixels=4,
+        pickable=False,
     )
 
     # Pickup dot
     pickup_layer = pdk.Layer(
         "ScatterplotLayer",
-        data=pd.DataFrame([{"lon": pickup_lon, "lat": pickup_lat}]),
+        data=pd.DataFrame([{"lon": pickup_lon, "lat": pickup_lat, "label": "Pickup"}]),
         get_position=["lon", "lat"],
         get_fill_color=[34, 197, 94, 255],
-        get_line_color=[255, 255, 255, 180],
-        get_radius=80,
+        get_line_color=[255, 255, 255, 200],
+        get_radius=100,
         stroked=True,
-        line_width_min_pixels=2,
+        line_width_min_pixels=3,
         pickable=True,
     )
 
     # Dropoff dot
     dropoff_layer = pdk.Layer(
         "ScatterplotLayer",
-        data=pd.DataFrame([{"lon": dropoff_lon, "lat": dropoff_lat}]),
+        data=pd.DataFrame([{"lon": dropoff_lon, "lat": dropoff_lat, "label": "Dropoff"}]),
         get_position=["lon", "lat"],
         get_fill_color=[239, 68, 68, 255],
-        get_line_color=[255, 255, 255, 180],
-        get_radius=80,
+        get_line_color=[255, 255, 255, 200],
+        get_radius=100,
         stroked=True,
-        line_width_min_pixels=2,
+        line_width_min_pixels=3,
         pickable=True,
     )
 
     deck = pdk.Deck(
-        layers=[arc_layer, pickup_layer, dropoff_layer],
+        layers=[line_layer, pickup_layer, dropoff_layer],
         initial_view_state=pdk.ViewState(
             latitude=mid_lat,
             longitude=mid_lon,
             zoom=12,
-            pitch=40,
+            pitch=0,      # ← flat 2D, no tilt
             bearing=0,
         ),
-        map_style="mapbox://styles/mapbox/dark-v10",
-        tooltip=False,
+        map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+        tooltip={"text": "{label}"},
     )
 
-    st.pydeck_chart(deck, use_container_width=True, height=560)
+    st.pydeck_chart(deck, use_container_width=True, height=580)
