@@ -1,176 +1,175 @@
 import streamlit as st
 import requests
+import pydeck as pdk
+import pandas as pd
 from datetime import datetime
 
-# ── Custom CSS ────────────────────────────────────────────────────────────────
+st.set_page_config(page_title="NYC Taxi Fare", page_icon="🚕", layout="centered")
+
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
-}
+* { font-family: 'Inter', sans-serif; }
 
-.stApp {
-    background-color: #0f0f14;
-    color: #f0ede8;
-}
+.stApp { background-color: #f8f9fb; }
 
-.hero {
-    background: linear-gradient(135deg, #f7c948 0%, #f4a623 100%);
-    border-radius: 20px;
-    padding: 2.5rem 2rem 2rem 2rem;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
-}
-.hero::before {
-    content: "🚕";
-    font-size: 9rem;
-    position: absolute;
-    right: -10px;
-    top: -10px;
-    opacity: 0.18;
-    line-height: 1;
-}
-.hero h1 {
-    font-family: 'Syne', sans-serif;
-    font-weight: 800;
-    font-size: 2.6rem;
-    color: #0f0f14;
-    margin: 0 0 0.4rem 0;
-    line-height: 1.1;
-}
-.hero p {
-    color: #3a2e00;
-    font-size: 1rem;
-    margin: 0;
-}
+section[data-testid="stSidebar"] { display: none; }
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+header { visibility: hidden; }
 
-.section-label {
-    font-family: 'Syne', sans-serif;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #f7c948;
-    margin-bottom: 0.5rem;
-    margin-top: 1.8rem;
-}
-
-/* Inputs */
+/* All inputs */
 div[data-testid="stTextInput"] input,
 div[data-testid="stNumberInput"] input {
-    background-color: #1a1a24 !important;
-    border: 1px solid #2a2a38 !important;
+    background: #fff !important;
+    border: 1.5px solid #e0e0e0 !important;
     border-radius: 10px !important;
-    color: #f0ede8 !important;
+    color: #111 !important;
+    font-size: 0.95rem !important;
+    padding: 0.55rem 0.8rem !important;
+    transition: border 0.2s;
+}
+div[data-testid="stTextInput"] input:focus,
+div[data-testid="stNumberInput"] input:focus {
+    border-color: #f7c948 !important;
+    box-shadow: 0 0 0 3px rgba(247,201,72,0.15) !important;
+}
+
+/* Labels */
+label[data-testid="stWidgetLabel"] p {
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    color: #666 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 /* Slider */
-div[data-testid="stSlider"] div[role="slider"] {
+div[data-testid="stSlider"] > div > div > div > div {
     background: #f7c948 !important;
 }
 
 /* Button */
 .stButton > button {
-    background: linear-gradient(135deg, #f7c948, #f4a623);
-    color: #0f0f14;
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: 1rem;
-    border: none;
-    border-radius: 12px;
-    padding: 0.75rem 2.5rem;
-    width: 100%;
-    letter-spacing: 0.04em;
-    margin-top: 1rem;
+    background: #111 !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 0.75rem 1.5rem !important;
+    width: 100% !important;
+    transition: background 0.2s !important;
 }
 .stButton > button:hover {
-    opacity: 0.85;
+    background: #333 !important;
 }
 
-.result-box {
-    background: linear-gradient(135deg, #1e2a1a, #162213);
-    border: 1px solid #3a5c30;
-    border-radius: 16px;
-    padding: 1.8rem;
-    text-align: center;
-    margin-top: 1.2rem;
-}
-.result-box .amount {
-    font-family: 'Syne', sans-serif;
-    font-size: 3.2rem;
-    font-weight: 800;
-    color: #7ed957;
-    line-height: 1;
-}
-.result-box .sublabel {
-    color: #5a8a50;
-    font-size: 0.85rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-top: 0.4rem;
-}
-
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
+hr { border: none; border-top: 1.5px solid #ececec; margin: 1.5rem 0; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Hero ──────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="hero">
-    <h1>NYC Taxi Fare<br>Estimator</h1>
-    <p>Instant fare prediction powered by machine learning</p>
-</div>
-""", unsafe_allow_html=True)
+# ── Header ────────────────────────────────────────────────────────────────────
+st.markdown("## 🚕 NYC Taxi Fare Estimator")
+st.markdown("<p style='color:#888; margin-top:-0.5rem; margin-bottom:1.5rem;'>Enter your ride details to get an instant fare estimate.</p>", unsafe_allow_html=True)
 
 # ── Date & Time ───────────────────────────────────────────────────────────────
-st.markdown('<div class="section-label">⏰ Date & Time</div>', unsafe_allow_html=True)
 pickup_datetime = st.text_input(
-    "Pickup date and time (YYYY-MM-DD HH:MM:SS)",
-    value=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    "Pickup date & time",
+    value=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    placeholder="YYYY-MM-DD HH:MM:SS"
 )
 
-# ── Locations ─────────────────────────────────────────────────────────────────
-st.markdown('<div class="section-label">📍 Pickup Location</div>', unsafe_allow_html=True)
-col1, col2 = st.columns(2, gap="medium")
-with col1:
-    pickup_latitude  = st.number_input("Pickup Latitude",  value=40.748817,  format="%.6f", key="plat")
-with col2:
-    pickup_longitude = st.number_input("Pickup Longitude", value=-73.985428, format="%.6f", key="plon")
+st.markdown("<hr>", unsafe_allow_html=True)
 
-st.markdown('<div class="section-label">🏁 Dropoff Location</div>', unsafe_allow_html=True)
-col3, col4 = st.columns(2, gap="medium")
-with col3:
-    dropoff_latitude  = st.number_input("Dropoff Latitude",  value=40.763015,  format="%.6f", key="dlat")
-with col4:
-    dropoff_longitude = st.number_input("Dropoff Longitude", value=-73.979570, format="%.6f", key="dlon")
+# ── Pickup ────────────────────────────────────────────────────────────────────
+st.markdown("<p style='font-weight:600; color:#111; margin-bottom:0.5rem;'>📍 Pickup</p>", unsafe_allow_html=True)
+c1, c2 = st.columns(2)
+with c1:
+    pickup_latitude  = st.number_input("Latitude",  value=40.748817,  format="%.6f", key="plat")
+with c2:
+    pickup_longitude = st.number_input("Longitude", value=-73.985428, format="%.6f", key="plon")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ── Dropoff ───────────────────────────────────────────────────────────────────
+st.markdown("<p style='font-weight:600; color:#111; margin-bottom:0.5rem;'>🏁 Dropoff</p>", unsafe_allow_html=True)
+c3, c4 = st.columns(2)
+with c3:
+    dropoff_latitude  = st.number_input("Latitude",  value=40.763015,  format="%.6f", key="dlat")
+with c4:
+    dropoff_longitude = st.number_input("Longitude", value=-73.979570, format="%.6f", key="dlon")
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# ── Map ───────────────────────────────────────────────────────────────────────
+st.markdown("<p style='font-weight:600; color:#111; margin-bottom:0.8rem;'>🗺️ Route preview</p>", unsafe_allow_html=True)
+
+midpoint_lat = (pickup_latitude + dropoff_latitude) / 2
+midpoint_lon = (pickup_longitude + dropoff_longitude) / 2
+
+# Line layer (route)
+line_layer = pdk.Layer(
+    "LineLayer",
+    data=pd.DataFrame([{
+        "start_lon": pickup_longitude,
+        "start_lat": pickup_latitude,
+        "end_lon":   dropoff_longitude,
+        "end_lat":   dropoff_latitude,
+    }]),
+    get_source_position=["start_lon", "start_lat"],
+    get_target_position=["end_lon",   "end_lat"],
+    get_color=[247, 201, 72, 220],
+    get_width=4,
+)
+
+# Scatter layer (pickup = green, dropoff = red)
+scatter_layer = pdk.Layer(
+    "ScatterplotLayer",
+    data=pd.DataFrame([
+        {"lon": pickup_longitude,  "lat": pickup_latitude,  "color": [34, 197, 94],  "label": "Pickup"},
+        {"lon": dropoff_longitude, "lat": dropoff_latitude, "color": [239, 68, 68],  "label": "Dropoff"},
+    ]),
+    get_position=["lon", "lat"],
+    get_fill_color="color",
+    get_radius=80,
+    pickable=True,
+)
+
+st.pydeck_chart(pdk.Deck(
+    map_style="mapbox://styles/mapbox/light-v10",
+    initial_view_state=pdk.ViewState(
+        latitude=midpoint_lat,
+        longitude=midpoint_lon,
+        zoom=12,
+        pitch=0,
+    ),
+    layers=[line_layer, scatter_layer],
+    tooltip={"text": "{label}"},
+), use_container_width=True)
+
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # ── Passengers ────────────────────────────────────────────────────────────────
-st.markdown('<div class="section-label">👥 Passengers</div>', unsafe_allow_html=True)
-passenger_count = st.slider("Number of passengers", min_value=1, max_value=8, value=1)
+passenger_count = st.slider("👥 Passengers", min_value=1, max_value=8, value=1)
 
-# ── Prediction ────────────────────────────────────────────────────────────────
-st.markdown('<div class="section-label">🔮 Prediction</div>', unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
-url = 'https://taxifare.lewagon.ai/predict'
+# ── Predict ───────────────────────────────────────────────────────────────────
+url = 'https://taxifare-294990428867.europe-west9.run.app'
 
-if url == 'https://taxifare.lewagon.ai/predict':
-    st.info("💡 You can swap the URL above to use your own trained model API.")
-
-if st.button("Predict Fare →"):
+if st.button("Get Fare Estimate →"):
     params = {
         "pickup_datetime":   pickup_datetime,
-        "pickup_longitude":  pickup_longitude,
         "pickup_latitude":   pickup_latitude,
-        "dropoff_longitude": dropoff_longitude,
+        "pickup_longitude":  pickup_longitude,
         "dropoff_latitude":  dropoff_latitude,
+        "dropoff_longitude": dropoff_longitude,
         "passenger_count":   passenger_count,
     }
 
-    with st.spinner("Calling the API..."):
+    with st.spinner("Fetching prediction..."):
         try:
             response = requests.get(url, params=params)
             response.raise_for_status()
@@ -179,14 +178,21 @@ if st.button("Predict Fare →"):
 
             if prediction is not None:
                 st.markdown(f"""
-                <div class="result-box">
-                    <div class="amount">${prediction:.2f}</div>
-                    <div class="sublabel">Estimated fare</div>
+                <div style="
+                    background:#fff;
+                    border:1.5px solid #e0e0e0;
+                    border-radius:16px;
+                    padding:2rem;
+                    text-align:center;
+                    margin-top:1rem;
+                ">
+                    <div style="font-size:0.75rem; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:#888; margin-bottom:0.5rem;">Estimated Fare</div>
+                    <div style="font-size:3rem; font-weight:700; color:#111;">${prediction:.2f}</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                st.error("Unexpected API response format.")
+                st.error("Unexpected API response.")
                 st.json(data)
 
         except requests.exceptions.RequestException as e:
-            st.error(f"API call failed: {e}")
+            st.error(f"API error: {e}")
