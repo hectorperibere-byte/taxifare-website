@@ -12,7 +12,7 @@ for k, v in [("stage", "form"), ("fare_data", None)]:
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ── GEOCODE — zero external packages, uses requests only ──────────────────────
+# ── GEOCODE — only uses requests, zero extra packages ─────────────────────────
 @st.cache_data(show_spinner=False)
 def geocode(address: str):
     try:
@@ -28,6 +28,24 @@ def geocode(address: str):
     except Exception:
         pass
     return None, None
+
+# ── OSRM ROAD ROUTING ────────────────────────────────────────────────────────
+@st.cache_data(show_spinner=False)
+def get_route(plat, plon, dlat, dlon):
+    """Get real road route from OSRM — returns list of [lon, lat] points."""
+    try:
+        r = requests.get(
+            f"http://router.project-osrm.org/route/v1/driving/{plon},{plat};{dlon},{dlat}",
+            params={"overview": "full", "geometries": "geojson"},
+            timeout=10,
+        )
+        data = r.json()
+        if data.get("code") == "Ok":
+            return data["routes"][0]["geometry"]["coordinates"]  # [[lon, lat], ...]
+    except Exception:
+        pass
+    # Fallback to straight line if OSRM fails
+    return [[plon, plat], [dlon, dlat]]
 
 # ── FARE API ──────────────────────────────────────────────────────────────────
 def get_fare(pickup_dt, plat, plon, dlat, dlon, pax):
@@ -54,11 +72,11 @@ def get_fare(pickup_dt, plat, plon, dlat, dlon, pax):
                 return float(v), None
             except (TypeError, ValueError):
                 pass
-        return None, f"Unexpected response: {data}"
+        return None, f"Unexpected API response: {data}"
     except Exception as e:
         return None, str(e)
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
+# ── CSS + ANIMATIONS ──────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
@@ -69,7 +87,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; background: #08
 .block-container { padding: 2rem 2.5rem !important; max-width: 1300px !important; }
 
 .hero-title { font-family: 'Bebas Neue', sans-serif; font-size: 4rem; color: #f0ede8; letter-spacing: 0.08em; line-height: 1; }
-.hero-sub { font-size: 0.9rem; color: #444; font-weight: 300; }
+.hero-sub { font-size: 0.9rem; color: #444; font-weight: 300; margin-top: 0.3rem; }
 .sec { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #e8b84b; margin: 1.2rem 0 0.4rem 0; }
 .divider { border: none; border-top: 1px solid #161620; margin: 1rem 0; }
 
@@ -82,9 +100,7 @@ div[data-testid="stTimeInput"] input {
     font-family: 'DM Sans', sans-serif !important;
 }
 div[data-testid="stTextInput"] input:focus,
-div[data-testid="stNumberInput"] input:focus,
-div[data-testid="stDateInput"] input:focus,
-div[data-testid="stTimeInput"] input:focus {
+div[data-testid="stNumberInput"] input:focus {
     border-color: #e8b84b !important;
     box-shadow: 0 0 0 3px rgba(232,184,75,0.1) !important;
 }
@@ -101,33 +117,29 @@ div[data-testid="stButton"] > button {
 }
 div[data-testid="stButton"] > button:hover { opacity: 0.88 !important; }
 
-/* F1 overlay */
+/* ── F1 OVERLAY ── */
 #f1-overlay {
     position: fixed; inset: 0; background: #08080a; z-index: 99999;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    overflow: hidden;
 }
 #f1-overlay::before {
     content: ''; position: absolute; inset: 0;
     background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
-    pointer-events: none; z-index: 1;
+    pointer-events: none;
 }
 .f1-title {
     font-family: 'Bebas Neue', sans-serif; font-size: 5rem; color: #e8b84b;
-    letter-spacing: 0.12em; z-index: 2; margin-bottom: 0.2rem;
-    animation: flicker 0.2s infinite alternate;
+    letter-spacing: 0.12em; margin-bottom: 0.2rem;
     text-shadow: 0 0 40px rgba(232,184,75,0.6);
+    animation: flicker 0.2s infinite alternate;
 }
-@keyframes flicker {
-    0%   { opacity: 1; }
-    100% { opacity: 0.92; }
-}
-.f1-sub { font-size: 0.72rem; letter-spacing: 0.4em; text-transform: uppercase; color: #444; z-index: 2; margin-bottom: 2.5rem; }
-.lights-row { display: flex; gap: 14px; margin-bottom: 2rem; z-index: 2; }
+@keyframes flicker { 0% { opacity:1; } 100% { opacity:0.9; } }
+.f1-sub { font-size: 0.72rem; letter-spacing: 0.4em; text-transform: uppercase; color: #444; margin-bottom: 2.5rem; }
+.lights-row { display: flex; gap: 14px; margin-bottom: 2rem; }
 .light { width: 24px; height: 24px; border-radius: 50%; background: #1a1a1a; border: 2px solid #2a2a2a; }
-.light.on { background: #e8b84b; border-color: #e8b84b; box-shadow: 0 0 18px rgba(232,184,75,1), 0 0 40px rgba(232,184,75,0.4); animation: lp 0.5s ease-in-out infinite alternate; }
-@keyframes lp { from { box-shadow: 0 0 10px rgba(232,184,75,0.6); } to { box-shadow: 0 0 28px rgba(232,184,75,1), 0 0 56px rgba(232,184,75,0.5); } }
-.track-wrap { position: relative; width: 520px; height: 300px; z-index: 2; }
+.light.on { background: #e8b84b; border-color: #e8b84b; animation: lp 0.5s ease-in-out infinite alternate; box-shadow: 0 0 18px rgba(232,184,75,1); }
+@keyframes lp { from { box-shadow: 0 0 10px rgba(232,184,75,0.6); } to { box-shadow: 0 0 30px rgba(232,184,75,1), 0 0 60px rgba(232,184,75,0.4); } }
+.track-wrap { position: relative; width: 520px; height: 300px; }
 .track-wrap svg { width: 100%; height: 100%; }
 .rcar {
     position: absolute; font-size: 2rem; top: 0; left: 0;
@@ -135,51 +147,53 @@ div[data-testid="stButton"] > button:hover { opacity: 0.88 !important; }
     offset-path: path('M 100 150 C 100 75 185 38 265 52 C 335 64 405 92 422 138 C 440 184 410 232 352 248 C 292 265 210 258 155 243 C 100 228 100 225 100 150');
     offset-rotate: auto;
     filter: drop-shadow(0 0 10px rgba(232,184,75,1));
-    z-index: 3;
 }
-@keyframes drive { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
+@keyframes drive { 0% { offset-distance:0%; } 100% { offset-distance:100%; } }
 .speed-line {
     position: absolute; height: 1px;
     background: linear-gradient(to right, transparent, rgba(232,184,75,0.35), transparent);
-    animation: sl 0.7s linear infinite; z-index: 2;
+    animation: sl 0.7s linear infinite;
 }
-@keyframes sl { 0% { transform: translateX(-120%); opacity:0; } 50% { opacity:1; } 100% { transform: translateX(110vw); opacity:0; } }
+@keyframes sl { 0% { transform:translateX(-120%); opacity:0; } 50% { opacity:1; } 100% { transform:translateX(110vw); opacity:0; } }
 
-/* Fare reveal */
+/* ── FARE REVEAL ── */
 #fare-reveal {
     position: fixed; inset: 0; background: #08080a; z-index: 99998;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     animation: fi 0.7s cubic-bezier(0.16,1,0.3,1) forwards;
 }
 @keyframes fi { 0% { opacity:0; transform:scale(0.9); } 100% { opacity:1; transform:scale(1); } }
-.fare-amt {
-    font-family: 'Bebas Neue', sans-serif; font-size: 10rem; color: #e8b84b; line-height: 1;
-    text-shadow: 0 0 80px rgba(232,184,75,0.4);
-    animation: cu 1s ease-out forwards;
-}
-@keyframes cu { 0% { transform: translateY(50px); opacity:0; } 100% { transform: translateY(0); opacity:1; } }
-.fare-lbl { font-size: 0.68rem; letter-spacing: 0.4em; text-transform: uppercase; color: #333; margin-bottom: 1rem; animation: fu 1s 0.2s ease-out both; }
-.fare-meta { font-size: 0.85rem; color: #2a2a2a; letter-spacing: 0.08em; animation: fu 1s 0.5s ease-out both; }
+.fare-amt { font-family:'Bebas Neue',sans-serif; font-size:10rem; color:#e8b84b; line-height:1; text-shadow:0 0 80px rgba(232,184,75,0.4); animation: cu 1s ease-out forwards; }
+@keyframes cu { 0% { transform:translateY(50px); opacity:0; } 100% { transform:translateY(0); opacity:1; } }
+.fare-lbl { font-size:0.68rem; letter-spacing:0.4em; text-transform:uppercase; color:#333; margin-bottom:1rem; }
+.fare-meta { font-size:0.85rem; color:#2a2a2a; letter-spacing:0.08em; }
 .fare-btn {
-    margin-top: 3rem; font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: #2a2a2a; cursor: pointer; padding: 0.6rem 1.6rem;
-    border: 1px solid #1e1e1e; border-radius: 8px;
-    animation: fu 1s 0.9s ease-out both;
-    transition: color 0.2s, border-color 0.2s;
+    margin-top:2.5rem; font-size:0.72rem; letter-spacing:0.2em; text-transform:uppercase;
+    color:#333; cursor:pointer; padding:0.6rem 1.6rem;
+    border:1px solid #1e1e1e; border-radius:8px; transition:color 0.2s, border-color 0.2s;
 }
-.fare-btn:hover { color: #e8b84b; border-color: #e8b84b; }
-@keyframes fu { 0% { transform: translateY(20px); opacity:0; } 100% { transform: translateY(0); opacity:1; } }
+.fare-btn:hover { color:#e8b84b; border-color:#e8b84b; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── F1 ANIMATION STAGE ────────────────────────────────────────────────────────
+# ── SNOOP DOGG MUSIC (hidden autoplay iframe) ─────────────────────────────────
+st.markdown("""
+<iframe
+    src="https://www.youtube.com/embed/QFcv5Ma8u8k?autoplay=1&loop=1&playlist=QFcv5Ma8u8k&mute=0&controls=0"
+    style="position:fixed;bottom:-200px;left:-200px;width:1px;height:1px;opacity:0.01;pointer-events:none;"
+    allow="autoplay; encrypted-media"
+    frameborder="0">
+</iframe>
+""", unsafe_allow_html=True)
+
+# ── F1 STAGE ──────────────────────────────────────────────────────────────────
 if st.session_state.stage == "f1":
     st.markdown("""
     <div id="f1-overlay">
         <div class="speed-line" style="top:18%;width:55%;animation-delay:0s;"></div>
-        <div class="speed-line" style="top:32%;width:38%;animation-delay:0.25s;"></div>
+        <div class="speed-line" style="top:35%;width:38%;animation-delay:0.25s;"></div>
         <div class="speed-line" style="top:68%;width:65%;animation-delay:0.1s;"></div>
-        <div class="speed-line" style="top:82%;width:45%;animation-delay:0.4s;"></div>
+        <div class="speed-line" style="top:82%;width:44%;animation-delay:0.4s;"></div>
         <div class="f1-title">NYC GRAND PRIX</div>
         <div class="f1-sub">Computing optimal fare trajectory</div>
         <div class="lights-row">
@@ -189,12 +203,9 @@ if st.session_state.stage == "f1":
         </div>
         <div class="track-wrap">
             <svg viewBox="0 0 520 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M 100 150 C 100 75 185 38 265 52 C 335 64 405 92 422 138 C 440 184 410 232 352 248 C 292 265 210 258 155 243 C 100 228 100 225 100 150"
-                    stroke="#1e1e28" stroke-width="36" fill="none" stroke-linecap="round"/>
-                <path d="M 100 150 C 100 75 185 38 265 52 C 335 64 405 92 422 138 C 440 184 410 232 352 248 C 292 265 210 258 155 243 C 100 228 100 225 100 150"
-                    stroke="#17171f" stroke-width="30" fill="none" stroke-linecap="round"/>
-                <path d="M 100 150 C 100 75 185 38 265 52 C 335 64 405 92 422 138 C 440 184 410 232 352 248 C 292 265 210 258 155 243 C 100 228 100 225 100 150"
-                    stroke="#252535" stroke-width="1" fill="none" stroke-dasharray="10 8"/>
+                <path d="M 100 150 C 100 75 185 38 265 52 C 335 64 405 92 422 138 C 440 184 410 232 352 248 C 292 265 210 258 155 243 C 100 228 100 225 100 150" stroke="#1e1e28" stroke-width="36" fill="none" stroke-linecap="round"/>
+                <path d="M 100 150 C 100 75 185 38 265 52 C 335 64 405 92 422 138 C 440 184 410 232 352 248 C 292 265 210 258 155 243 C 100 228 100 225 100 150" stroke="#17171f" stroke-width="30" fill="none" stroke-linecap="round"/>
+                <path d="M 100 150 C 100 75 185 38 265 52 C 335 64 405 92 422 138 C 440 184 410 232 352 248 C 292 265 210 258 155 243 C 100 228 100 225 100 150" stroke="#252535" stroke-width="1" fill="none" stroke-dasharray="10 8"/>
                 <rect x="87" y="136" width="5" height="28" fill="#e8b84b" rx="1" opacity="0.9"/>
                 <rect x="87" y="136" width="2.5" height="7" fill="white" opacity="0.5"/>
                 <rect x="89.5" y="143" width="2.5" height="7" fill="white" opacity="0.5"/>
@@ -211,7 +222,7 @@ if st.session_state.stage == "f1":
     st.session_state.stage = "result"
     st.rerun()
 
-# ── FARE REVEAL STAGE ─────────────────────────────────────────────────────────
+# ── RESULT STAGE ──────────────────────────────────────────────────────────────
 elif st.session_state.stage == "result" and st.session_state.fare_data:
     d = st.session_state.fare_data
     pax_label = f"{d['pax']} passenger{'s' if d['pax'] > 1 else ''}"
@@ -220,13 +231,13 @@ elif st.session_state.stage == "result" and st.session_state.fare_data:
         <div class="fare-lbl">Estimated Fare</div>
         <div class="fare-amt">${d['pred']:.2f}</div>
         <div class="fare-meta">{pax_label} &nbsp;·&nbsp; New York City</div>
-        <div class="fare-btn" onclick="document.getElementById('fare-reveal').style.display='none'">
-            → View Route Map
-        </div>
+        <div class="fare-btn" onclick="
+            document.getElementById('fare-reveal').style.display='none';
+        ">→ View Route Map</div>
     </div>
     """, unsafe_allow_html=True)
 
-# ── MAIN FORM ─────────────────────────────────────────────────────────────────
+# ── MAIN LAYOUT ───────────────────────────────────────────────────────────────
 left, right = st.columns([1, 1.6], gap="large")
 
 with left:
@@ -245,21 +256,24 @@ with left:
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sec">📍 Pickup Address</div>', unsafe_allow_html=True)
-    pickup_address = st.text_input("p", label_visibility="collapsed", placeholder="e.g. Empire State Building")
+    pickup_address = st.text_input("pickup_addr", label_visibility="collapsed",
+                                   placeholder="e.g. Empire State Building")
 
     st.markdown('<div class="sec">🏁 Dropoff Address</div>', unsafe_allow_html=True)
-    dropoff_address = st.text_input("d", label_visibility="collapsed", placeholder="e.g. JFK Airport")
+    dropoff_address = st.text_input("dropoff_addr", label_visibility="collapsed",
+                                    placeholder="e.g. JFK Airport")
 
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
     st.markdown('<div class="sec">👥 Passengers</div>', unsafe_allow_html=True)
-    passenger_count = st.number_input("n", min_value=1, max_value=8, value=1, label_visibility="collapsed")
+    passenger_count = st.number_input("pax_count", min_value=1, max_value=8, value=1,
+                                      label_visibility="collapsed")
 
     st.markdown("<div style='margin-top:1.4rem'></div>", unsafe_allow_html=True)
 
     if st.button("🏎️  RACE TO FARE"):
         if not pickup_address.strip() or not dropoff_address.strip():
-            st.error("Please enter both addresses.")
+            st.error("Please enter both pickup and dropoff addresses.")
         else:
             with st.spinner("Finding addresses..."):
                 plat, plon = geocode(pickup_address.strip())
@@ -284,17 +298,24 @@ with left:
                     st.session_state.stage = "f1"
                     st.rerun()
 
-    # Compact result card (shown after animation)
+    # Compact fare card shown after animation
     if st.session_state.fare_data and st.session_state.stage == "result":
         d = st.session_state.fare_data
         st.markdown(f"""
         <div style="background:#111116;border:1px solid #1e1e28;border-radius:14px;
                     padding:1.4rem;text-align:center;margin-top:1rem;">
-            <div style="font-size:0.6rem;letter-spacing:0.18em;text-transform:uppercase;color:#333;margin-bottom:0.4rem;">Estimated Fare</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:3.4rem;color:#e8b84b;line-height:1;">${d['pred']:.2f}</div>
+            <div style="font-size:0.6rem;letter-spacing:0.18em;text-transform:uppercase;
+                        color:#333;margin-bottom:0.4rem;">Estimated Fare</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:3.4rem;
+                        color:#e8b84b;line-height:1;">${d['pred']:.2f}</div>
             <div style="font-size:0.78rem;color:#333;margin-top:0.4rem;">{d['pax']} pax · NYC</div>
         </div>
         """, unsafe_allow_html=True)
+
+        if st.button("🔄 New Ride"):
+            st.session_state.stage = "form"
+            st.session_state.fare_data = None
+            st.rerun()
 
 # ── MAP ───────────────────────────────────────────────────────────────────────
 with right:
@@ -306,24 +327,42 @@ with right:
     dlat = d["dlat"] if d else 40.763015
     dlon = d["dlon"] if d else -73.979570
 
+    mid_lat = (plat + dlat) / 2
+    mid_lon = (plon + dlon) / 2
+
+    route_coords = get_route(plat, plon, dlat, dlon)
+
     st.pydeck_chart(pdk.Deck(
         layers=[
-            pdk.Layer("PathLayer",
-                data=pd.DataFrame([{"path": [[plon, plat], [dlon, dlat]]}]),
-                get_path="path", get_color=[232, 184, 75, 255],
-                get_width=6, width_min_pixels=4),
-            pdk.Layer("ScatterplotLayer",
+            pdk.Layer(
+                "PathLayer",
+                data=pd.DataFrame([{"path": route_coords}]),
+                get_path="path",
+                get_color=[232, 184, 75, 255],
+                get_width=6,
+                width_min_pixels=4,
+            ),
+            pdk.Layer(
+                "ScatterplotLayer",
                 data=pd.DataFrame([
-                    {"lon": plon, "lat": plat, "color": [34, 197, 94, 255],  "label": "📍 Pickup"},
-                    {"lon": dlon, "lat": dlat, "color": [239, 68, 68, 255],  "label": "🏁 Dropoff"},
+                    {"lon": plon, "lat": plat, "color": [34, 197, 94, 255],  "label": "Pickup"},
+                    {"lon": dlon, "lat": dlat, "color": [239, 68, 68, 255],  "label": "Dropoff"},
                 ]),
-                get_position=["lon", "lat"], get_fill_color="color",
-                get_line_color=[255, 255, 255, 180], get_radius=110,
-                stroked=True, line_width_min_pixels=3, pickable=True),
+                get_position=["lon", "lat"],
+                get_fill_color="color",
+                get_line_color=[255, 255, 255, 180],
+                get_radius=110,
+                stroked=True,
+                line_width_min_pixels=3,
+                pickable=True,
+            ),
         ],
         initial_view_state=pdk.ViewState(
-            latitude=(plat + dlat) / 2, longitude=(plon + dlon) / 2,
-            zoom=12, pitch=0, bearing=0,
+            latitude=mid_lat,
+            longitude=mid_lon,
+            zoom=12,
+            pitch=0,
+            bearing=0,
         ),
         map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
         tooltip={"text": "{label}"},
